@@ -27,6 +27,10 @@ class Book {
   protected $image;
   // активность (предложение доступно для запроса или по какой-либо причине скрыто от поиска)
   protected $active;
+  // индентификатор языка
+  protected $languageId;
+  // дата публикации книги
+  protected $publication_date;
   // Конструктор
   function __construct(
     $title
@@ -42,6 +46,8 @@ class Book {
     , $userEmail
     , $id = 0
     , $updatedAt = ''
+    , $languageId
+    , $publication_date
     ) {
     $this->id = $id;
     $this->updatedAt = $updatedAt;
@@ -56,6 +62,8 @@ class Book {
     $this->typeId = $typeId;
     $this->image = $image;
     $this->active = $active;
+    $this->languageId = $languageId;
+    $this->publication_date = $publication_date;
   }
   // вставка строки о книге в БД
   function create () {
@@ -64,7 +72,7 @@ class Book {
       $pdo = getDbContext();
       // echo '$pdo' . $pdo;
       // Готовим sql-запрос добавления строки в таблицу "Книги"
-      $ps = $pdo->prepare("INSERT INTO `Books` (`userId`, `userEmail`, `title`, `author`, `genre`, `description`, `countryId`, `cityId`, `typeId`, `image`, `active`) VALUES (:userId, :userEmail, :title, :author, :genre, :description, :countryId, :cityId, :typeId, :image, :active)");
+      $ps = $pdo->prepare("INSERT INTO `Books` (`userId`, `userEmail`, `title`, `author`, `genre`, `description`, `countryId`, `cityId`, `typeId`, `image`, `active`, `languageId`, `publication_date`) VALUES (:userId, :userEmail, :title, :author, :genre, :description, :countryId, :cityId, :typeId, :image, :active, :languageId, :publication_date)");
       // Превращаем объект в массив
       $ar = get_object_vars($this);
       // Удаляем из него первые два элемента - id и created_at, потому что их создаст СУБД
@@ -75,7 +83,7 @@ class Book {
       $ps->execute($ar);
       //
       $this->id = $pdo->lastInsertId();
-      $ps = $pdo->prepare("SELECT `b`.`id`, `b`.`updatedAt`, `b`.`userId`, `b`.`userEmail`, `b`.`title`, `b`.`author`, `b`.`genre`, `b`.`description`, `co`.`name` AS 'country', `ci`.`name` AS 'city', `ty`.`id` AS 'type', `b`.`image`, `b`.`active` FROM `Books` AS `b` INNER JOIN `Country` AS `co` ON (`b`.`countryId` = `co`.`id`) INNER JOIN `City` AS `ci` ON (`b`.`cityId` = `ci`.`id`) INNER JOIN `Type` AS `ty` ON (`b`.`typeId` = `ty`.`id`) WHERE `b`.`id` = {$this->id}");
+      $ps = $pdo->prepare("SELECT `b`.`id`, `b`.`updatedAt`, `b`.`userId`, `b`.`userEmail`, `b`.`title`, `b`.`author`, `b`.`genre`, `b`.`description`, `b`.`publication_date`, `co`.`name` AS 'country', `ci`.`name` AS 'city', `ty`.`id` AS 'type', `b`.`image`, `b`.`active`, `la`.`id` AS 'language' FROM `Books` AS `b` INNER JOIN `Country` AS `co` ON (`b`.`countryId` = `co`.`id`) INNER JOIN `City` AS `ci` ON (`b`.`cityId` = `ci`.`id`) INNER JOIN `Type` AS `ty` ON (`b`.`typeId` = `ty`.`id`) INNER JOIN `Language` AS `la` ON (`b`.`languageId` = `la`.`id`) WHERE `b`.`id` = {$this->id}");
       return ($ps->execute() && ($row = $ps->fetch())) ? $row : null;
     } catch (PDOException $e) {
       // Если произошла ошибка - возвращаем ее текст
@@ -168,10 +176,10 @@ class Book {
           }
         }
         // Готовим sql-запрос чтения всех строк данных из таблицы "Книги"
-        // с подключением связанных таблиц "Страна", "Город", "Тип",
+        // с подключением связанных таблиц "Страна", "Город", "Тип", "Язык"
         // сортируем по идентификаторам,
         // пытаемся получить только три значения из строк, идентификаторы которых меньше заданного
-        $ps = $pdo->prepare("SELECT `b`.`id`, `b`.`updatedAt`, `b`.`userId`, `b`.`userEmail`, `b`.`title`, `b`.`author`, `b`.`genre`, `b`.`description`, `co`.`name` AS 'country', `ci`.`name` AS 'city', `ty`.`id` AS 'type', `b`.`image`, `b`.`active` FROM `Books` AS `b` INNER JOIN `Country` AS `co` ON (`b`.`countryId` = `co`.`id`) INNER JOIN `City` AS `ci` ON (`b`.`cityId` = `ci`.`id`) INNER JOIN `Type` AS `ty` ON (`b`.`typeId` = `ty`.`id`) {$whereClouseString} ORDER BY `b`.`id` DESC LIMIT 2");
+        $ps = $pdo->prepare("SELECT `b`.`id`, `b`.`updatedAt`, `b`.`userId`, `b`.`userEmail`, `b`.`title`, `b`.`author`, `b`.`genre`, `b`.`description`, `b`.`publication_date`, `co`.`name` AS 'country', `ci`.`name` AS 'city', `ty`.`id` AS 'type', `b`.`image`, `b`.`active`, `la`.`id` AS 'language' FROM `Books` AS `b` INNER JOIN `Country` AS `co` ON (`b`.`countryId` = `co`.`id`) INNER JOIN `City` AS `ci` ON (`b`.`cityId` = `ci`.`id`) INNER JOIN `Type` AS `ty` ON (`b`.`typeId` = `ty`.`id`) INNER JOIN `Language` AS `la` ON (`b`.`languageId` = `la`.`id`) {$whereClouseString} ORDER BY `b`.`id` DESC LIMIT 2");
         // echo "SELECT `b`.`id`, `b`.`updatedAt`, `b`.`userId`, `b`.`title`, `b`.`author`, `b`.`genre`, `b`.`description`, `co`.`name` AS 'country', `ci`.`name` AS 'city', `ty`.`name` AS 'type', `b`.`image`, `b`.`active` FROM `Books` AS `b` INNER JOIN `Country` AS `co` ON (`b`.`countryId` = `co`.`id`) INNER JOIN `City` AS `ci` ON (`b`.`cityId` = `ci`.`id`) INNER JOIN `Type` AS `ty` ON (`b`.`typeId` = `ty`.`id`) {$whereClouseString} ORDER BY `b`.`id` DESC LIMIT 3";
         // Выполняем
         $ps->execute();
